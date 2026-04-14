@@ -13,13 +13,18 @@ def load_dataset(file_path_or_buffer):
         raise ValueError("Target column 'num' not found in the dataset.")
         
     y_multiclass = pd.to_numeric(df["num"], errors="coerce").fillna(0).astype(int).values
+    
     y_binary = (y_multiclass > 0).astype(int)
+    
+    y_3class = np.zeros_like(y_multiclass)
+    y_3class[(y_multiclass == 1) | (y_multiclass == 2)] = 1
+    y_3class[(y_multiclass == 3) | (y_multiclass == 4)] = 2
 
     drop_cols = ["id", "num"] if "id" in df.columns else ["num"]
     X_df = df.drop(columns=drop_cols, errors='ignore')
     feature_columns = X_df.columns.tolist()
 
-    return X_df, feature_columns, y_binary, y_multiclass
+    return X_df, feature_columns, y_binary, y_3class, y_multiclass
 
 def fit_preprocessor(X_df):
     numeric_cols = X_df.select_dtypes(include=[np.number]).columns.tolist()

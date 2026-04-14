@@ -6,6 +6,16 @@
     <title>Heart Disease GWO Predictor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-family: inherit;
+        }
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -29,6 +39,12 @@
             <section class="card disabled" id="training-section">
                 <h2>2. Feature Selection Configuration</h2>
                 <div class="config-area">
+                    <label for="classificationMode">Select Classification Setup:</label>
+                    <select id="classificationMode" class="form-select" disabled>
+                        <option value="binary" selected>Binary Classification (Legacy)</option>
+                        <option value="multiclass">3-Class Multiclass (SMOTE + Custom Tuning)</option>
+                    </select>
+
                     <label for="nFeatures">Number of predictive features to keep (Min: 7)</label>
                     <div class="slider-container">
                         <input type="range" id="nFeatures" min="7" max="14" value="7" disabled>
@@ -77,6 +93,7 @@
             uploadStatus: document.getElementById('uploadStatus'),
 
             trainSection: document.getElementById('training-section'),
+            classificationMode: document.getElementById('classificationMode'),
             nFeatures: document.getElementById('nFeatures'),
             nFeaturesLabel: document.getElementById('nFeaturesLabel'),
             trainBtn: document.getElementById('trainBtn'),
@@ -119,6 +136,7 @@
                     
                     DOM.nFeatures.max = json.total_features;
                     DOM.nFeatures.disabled = false;
+                    DOM.classificationMode.disabled = false;
                     DOM.trainBtn.disabled = false;
                     DOM.trainSection.classList.remove('disabled');
                 } else {
@@ -141,12 +159,15 @@
                 const res = await fetch('/train', { 
                     method: 'POST', 
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({n_features: DOM.nFeatures.value}) 
+                    body: JSON.stringify({
+                        n_features: DOM.nFeatures.value,
+                        classification_mode: DOM.classificationMode.value
+                    }) 
                 });
                 const json = await res.json();
 
                 if (res.ok) {
-                    DOM.trainStatus.textContent = "Optimization complete! Here are the selected features:";
+                    DOM.trainStatus.textContent = json.message || "Optimization complete!";
                     DOM.trainStatus.className = "status-text success";
                     
                     DOM.selectedFeaturesList.innerHTML = json.selected_features.map(f => `<span class="tag">${f}</span>`).join('');
@@ -217,9 +238,34 @@
 
                 if (res.ok) {
                     DOM.predictionResult.classList.remove('hidden');
-                    DOM.predictionResult.className = `result-box ${json.class === 1 ? 'risk-high' : 'risk-low'}`;
-                    DOM.predClass.textContent = json.class === 1 ? "⚠️ High Risk (Disease Detected)" : "✅ Low Risk (No Disease)";
-                    DOM.predProb.textContent = `Probability: ${(json.probability * 100).toFixed(2)}%`;
+                    let riskClassStr = "";
+                    let riskTextStr = "";
+                    
+                    if (json.mode === "binary") {
+                         riskClassStr = json.class === 1 ? "risk-high" : "risk-low";
+                         riskTextStr = json.class === 1 ? "⚠️ High Risk (Disease Detected)" : "✅ Low Risk (No disease)";
+                    } else {
+                         if (json.class === 2) {
+                             riskClassStr = "risk-high";
+                             riskTextStr = "🛑 High Risk (Severe disease)";
+                         } else if (json.class === 1) {
+                             riskClassStr = "risk-high";
+                             riskTextStr = "⚠️ Moderate Risk (Mild disease)";
+                         } else {
+                             riskClassStr = "risk-low";
+                             riskTextStr = "✅ Low Risk (No disease)";
+                         }
+                    }
+                    DOM.predictionResult.className = `result-box ${riskClassStr}`;
+                    DOM.predClass.textContent = riskTextStr;
+                    
+                    // Format probabilities conditionally
+                    if (json.mode === "binary") {
+                         DOM.predProb.textContent = `Probability: ${(json.probabilities[1] * 100).toFixed(2)}%`;
+                    } else {
+                         const probStr = json.probabilities.map((p, i) => `Class ${i}: ${(p*100).toFixed(1)}%`).join(' | ');
+                         DOM.predProb.textContent = `Probabilities: ${probStr}`;
+                    }
                 } else throw new Error(json.error);
             } catch (err) {
                 alert(`Error: ${err.message}`);
