@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart Disease GWO Predictor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Heart Disease Web Predictor</h1>
+            <p>Powered by Logistic Regression & Gray Wolf Optimization</p>
+        </header>
+
+        <div class="content-wrapper">
+            <!-- Upload Section -->
+            <section class="card" id="upload-section">
+                <h2>1. Upload Dataset</h2>
+                <div class="upload-area">
+                    <input type="file" id="datasetFile" accept=".csv">
+                    <button class="btn primary" id="uploadBtn">Upload Data</button>
+                    <p id="uploadStatus" class="status-text"></p>
+                </div>
+            </section>
+
+            <!-- Configuration & Training -->
+            <section class="card disabled" id="training-section">
+                <h2>2. Feature Selection Configuration</h2>
+                <div class="config-area">
+                    <label for="nFeatures">Number of predictive features to keep (Min: 7)</label>
+                    <div class="slider-container">
+                        <input type="range" id="nFeatures" min="7" max="14" value="7" disabled>
+                        <span id="nFeaturesLabel" class="badge">7</span>
+                    </div>
+                    <button class="btn primary" id="trainBtn" disabled>Run Optimization & Train</button>
+                    <p id="trainStatus" class="status-text"></p>
+                    <div id="selectedFeaturesList" class="tags-container"></div>
+                </div>
+            </section>
+
+            <!-- Evaluation -->
+            <section class="card disabled" id="evaluation-section">
+                <h2>3. Model Evaluation</h2>
+                <button class="btn secondary" id="evaluateBtn" disabled>Evaluate Accuracy</button>
+                <div id="evalResults" class="metrics-grid hidden">
+                    <div class="metric">
+                        <span>Accuracy</span>
+                        <h3 id="accValue">-</h3>
+                    </div>
+                    <div class="metric">
+                        <span>F1 Score</span>
+                        <h3 id="f1Value">-</h3>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Prediction -->
+            <section class="card disabled" id="prediction-section">
+                <h2>4. Dynamic Prediction Form</h2>
+                <p>Fill out the fields dynamically selected by GWO:</p>
+                <form id="predictForm" class="hidden"></form>
+                <button class="btn success hidden" id="predictBtn">Predict Risk</button>
+                <div id="predictionResult" class="result-box hidden">
+                    <h3 id="predClass"></h3>
+                    <p id="predProb"></p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const DOM = {
+            uploadBtn: document.getElementById('uploadBtn'),
+            fileInput: document.getElementById('datasetFile'),
+            uploadStatus: document.getElementById('uploadStatus'),
+
+            trainSection: document.getElementById('training-section'),
+            nFeatures: document.getElementById('nFeatures'),
+            nFeaturesLabel: document.getElementById('nFeaturesLabel'),
+            trainBtn: document.getElementById('trainBtn'),
+            trainStatus: document.getElementById('trainStatus'),
+            selectedFeaturesList: document.getElementById('selectedFeaturesList'),
+
+            evalSection: document.getElementById('evaluation-section'),
+            evaluateBtn: document.getElementById('evaluateBtn'),
+            evalResults: document.getElementById('evalResults'),
+            accValue: document.getElementById('accValue'),
+            f1Value: document.getElementById('f1Value'),
+
+            predictSection: document.getElementById('prediction-section'),
+            predictForm: document.getElementById('predictForm'),
+            predictBtn: document.getElementById('predictBtn'),
+            predictionResult: document.getElementById('predictionResult'),
+            predClass: document.getElementById('predClass'),
+            predProb: document.getElementById('predProb')
+        };
+
+        DOM.nFeatures.addEventListener('input', (e) => {
+            DOM.nFeaturesLabel.textContent = e.target.value;
+        });
+
+        DOM.uploadBtn.addEventListener('click', async () => {
+            if (!DOM.fileInput.files[0]) return alert("Select a CSV file first!");
+            const formData = new FormData();
+            formData.append('file', DOM.fileInput.files[0]);
+
+            DOM.uploadStatus.textContent = "Uploading...";
+            DOM.uploadBtn.disabled = true;
+
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const json = await res.json();
+
+                if (res.ok) {
+                    DOM.uploadStatus.textContent = `Success! Discovered ${json.total_features} features.`;
+                    DOM.uploadStatus.className = "status-text success";
+                    
+                    DOM.nFeatures.max = json.total_features;
+                    DOM.nFeatures.disabled = false;
+                    DOM.trainBtn.disabled = false;
+                    DOM.trainSection.classList.remove('disabled');
+                } else {
+                    throw new Error(json.error);
+                }
+            } catch (err) {
+                DOM.uploadStatus.textContent = `Error: ${err.message}`;
+                DOM.uploadStatus.className = "status-text error";
+            } finally {
+                DOM.uploadBtn.disabled = false;
+            }
+        });
+
+        DOM.trainBtn.addEventListener('click', async () => {
+            DOM.trainStatus.textContent = "Training... (This may take a moment)";
+            DOM.trainStatus.className = "status-text";
+            DOM.trainBtn.disabled = true;
+
+            try {
+                const res = await fetch('/train', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({n_features: DOM.nFeatures.value}) 
+                });
+                const json = await res.json();
+
+                if (res.ok) {
+                    DOM.trainStatus.textContent = "Optimization complete! Here are the selected features:";
+                    DOM.trainStatus.className = "status-text success";
+                    
+                    DOM.selectedFeaturesList.innerHTML = json.selected_features.map(f => `<span class="tag">${f}</span>`).join('');
+
+                    DOM.evalSection.classList.remove('disabled');
+                    DOM.evaluateBtn.disabled = false;
+                    DOM.predictSection.classList.remove('disabled');
+                    DOM.predictForm.classList.remove('hidden');
+                    DOM.predictBtn.classList.remove('hidden');
+
+                    DOM.predictForm.innerHTML = json.selected_features.map(f => `
+                        <div class="input-group">
+                            <label for="inp_${f}">${f.toUpperCase()}</label>
+                            <input type="text" id="inp_${f}" name="${f}" required placeholder="Enter custom value">
+                        </div>
+                    `).join('');
+
+                } else {
+                    throw new Error(json.error);
+                }
+            } catch (err) {
+                DOM.trainStatus.textContent = `Error: ${err.message}`;
+                DOM.trainStatus.className = "status-text error";
+            } finally {
+                DOM.trainBtn.disabled = false;
+            }
+        });
+
+        DOM.evaluateBtn.addEventListener('click', async () => {
+            DOM.evaluateBtn.disabled = true;
+            DOM.evaluateBtn.textContent = "Evaluating...";
+            
+            try {
+                const res = await fetch('/evaluate', { method: 'POST' });
+                const json = await res.json();
+
+                if (res.ok) {
+                    DOM.accValue.textContent = (json.accuracy * 100).toFixed(2) + "%";
+                    DOM.f1Value.textContent = (json.f1 * 100).toFixed(2) + "%";
+                    DOM.evalResults.classList.remove('hidden');
+                    DOM.evaluateBtn.textContent = "Re-Evaluate";
+                } else throw new Error(json.error);
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+                DOM.evaluateBtn.textContent = "Evaluate Accuracy";
+            }
+            DOM.evaluateBtn.disabled = false;
+        });
+
+        DOM.predictBtn.addEventListener('click', async () => {
+            const formData = new FormData(DOM.predictForm);
+            const data = Object.fromEntries(formData.entries());
+            
+            if (Object.values(data).some(v => v === "")) {
+                return alert("Please fill all fields.");
+            }
+
+            DOM.predictBtn.disabled = true;
+            DOM.predictBtn.textContent = "Predicting...";
+
+            try {
+                const res = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const json = await res.json();
+
+                if (res.ok) {
+                    DOM.predictionResult.classList.remove('hidden');
+                    DOM.predictionResult.className = `result-box ${json.class === 1 ? 'risk-high' : 'risk-low'}`;
+                    DOM.predClass.textContent = json.class === 1 ? "⚠️ High Risk (Disease Detected)" : "✅ Low Risk (No Disease)";
+                    DOM.predProb.textContent = `Probability: ${(json.probability * 100).toFixed(2)}%`;
+                } else throw new Error(json.error);
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                DOM.predictBtn.disabled = false;
+                DOM.predictBtn.textContent = "Predict Risk";
+            }
+        });
+    </script>
+</body>
+</html>
