@@ -95,7 +95,7 @@ def train():
         preprocessor, X_train, feature_names = fit_preprocessor(train_df)
         X_test = transform_features(test_df, preprocessor)
 
-        n_iters = 10 if n_features else 15
+        n_iters = 30
         best_c_val = None
 
         if classification_mode == "binary":
@@ -106,7 +106,7 @@ def train():
                 X_gwo_train, y_gwo_train, X_gwo_valid, y_gwo_valid, 
                 fitness_function_binary, 
                 target_n_features=n_features, 
-                n_wolves=10, n_iterations=n_iters
+                n_wolves=20, n_iterations=n_iters
             )
             model = train_model_binary(X_train, y_train_target, best_wolf)
             message = "Binary Model trained successfully."
@@ -118,7 +118,7 @@ def train():
                 X_train_res, y_train_res, None, None, 
                 fitness_function_multiclass, 
                 target_n_features=n_features, 
-                n_wolves=10, n_iterations=n_iters
+                n_wolves=20, n_iterations=n_iters
             )
             model = train_model_multiclass(X_train_res, y_train_res, best_wolf, c_val=best_c_val)
             message = f"Multiclass Model trained successfully. (Optimal C: {best_c_val:.4f})"

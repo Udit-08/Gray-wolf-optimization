@@ -1,7 +1,7 @@
 import numpy as np
 
 # --- MULTICLASS GWO (With Hyperparameter C) ---
-def gwo_multiclass(X_train, y_train, X_valid, y_valid, fitness_function, target_n_features=None, n_wolves=20, n_iterations=25):
+def gwo_multiclass(X_train, y_train, X_valid, y_valid, fitness_function, target_n_features=None, n_wolves=20, n_iterations=500):
     n_features = X_train.shape[1]
     n_attributes = n_features + 1
     positions = np.random.uniform(0, 1, size=(n_wolves, n_attributes))
@@ -83,7 +83,7 @@ def gwo_multiclass(X_train, y_train, X_valid, y_valid, fitness_function, target_
     return best_wolf, best_c_val, alpha_score, fitness_history
 
 # --- BINARY LEGACY GWO ---
-def gwo_binary(X_train, y_train, X_valid, y_valid, fitness_function, target_n_features=None, n_wolves=20, n_iterations=25):
+def gwo_binary(X_train, y_train, X_valid, y_valid, fitness_function, target_n_features=None, n_wolves=20, n_iterations=500):
     n_features = X_train.shape[1]
     positions = np.random.uniform(0, 1, size=(n_wolves, n_features))
     fitness_history = []

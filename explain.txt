@@ -1,0 +1,39 @@
+# Project Explanation: GWO Feature Selection and Classification
+
+## 1. Overview: How the Project is Working
+The project is an end-to-end Machine Learning pipeline bundled inside a modern web application (built using Flask) designed primarily for classifying heart disease.
+It supports both binary classification and multiclass classification. Here is the lifecycle of how the app functions:
+- Dataset Upload: Users can upload a dataset (like `heart_disease_uci.csv`) directly from the browser's UI.
+- Preprocessing: The backend takes over and preprocesses the data—handling missing values and properly handling categoric and numeric representations using standard scales and encoders. It handles imbalanced datasets dynamically by applying SMOTE (Synthetic Minority Over-sampling Technique) on multiclass sets.
+- Feature Selection: To optimize the predictor and prevent overfitting on unnecessary columns, the system actively selects only the best predictive columns using **Gray Wolf Optimization (GWO)**. Users can specify how many features they want to extract (e.g., restricted to a minimum of 7 or exactly 8).
+- Model Training: Using the selected features only, a Logistic Regression model (using `f1_weighted` over balanced class weights) is trained.
+- Interactivity: Finally, users get to see evaluation metrics (Accuracy, weighted F1-Score, Confusion Matrices) mapped directly in the Flask dashboard, and they can send in custom inputs via the `predict` endpoint to get real-time prognostic estimations.
+
+## 2. What is Gray Wolf Optimization (GWO)?
+Gray Wolf Optimization is a meta-heuristic mathematical algorithm inspired by nature—specifically the social hierarchy and hunting behavior of gray wolf packs. Inside a pack, wolves have a strict dominance hierarchy:
+- **Alpha (α)**: The leader of the pack. In the algorithm, this represents the **absolute best solution** found so far.
+- **Beta (β)**: The second-in-command. Represents the **second-best solution**.
+- **Delta (δ)**: The third-in-command. Represents the **third-best solution**.
+- **Omega (ω)**: The rest of the pack, which updates their positions by following the leads of the top three.
+
+During the mathematical "hunt", Alpha, Beta, and Delta are estimated to be closest to the "prey" (the optimal solution). At every step of the algorithm, the remaining Omega wolves recalculate their positions to encircle the prey, progressively closing in on the best global solution.
+
+## 3. How are we applying GWO here to select columns?
+Normally, GWO optimizes continuous numerical values. However, we are using a **Binary variation of GWO** to solve our Feature Selection problem.
+Here is the step-by-step breakdown of how it's implemented in `ml/gwo.py` and `ml/model.py`:
+
+- **Positions as Feature Probabilities**: Each wolf is represented as an array of values between 0 and 1 (with length equal to the total number of original dataset columns).
+- **Binarization (The Column Mask)**: To decide which columns a wolf wants to select, we take its positional array. For example, if we enforce a 8-feature constraint, we look at the array, find the indices of the 8 highest values, and set them to `1` (Keep Feature), while setting everything else to `0` (Drop Feature).
+- **Simultaneous Hyperparameter Tuning**: In our Multiclass variant, an extra continuous dimension is appended to the wolf's array, which represents `C` (the inverse of regularization strength for the Logistic Regression model). The wolf searches for the best features and the best learning parameters simultaneously.
+- **The Fitness Function (The "Prey")**: To determine if a wolf is Alpha material, we map its binary mask into the dataset, filter out the dropped columns, and train an enclosed Logistic Regression model **using only those selected columns**. 
+    - We then evaluate it using a 5-Fold Cross-Validation, scoring based on `f1_weighted` (or a static validation set in Binary scenarios). 
+    - The resulting F-1 score becomes the wolf's "fitness". A higher F-1 score means the combination of picked columns was better.
+- **Updating Generations**: Wolves that randomly picked bad combinations will get low F1 scores. The Alpha, Beta, and Delta wolves hold the best F1 scores. The algorithm updates the positional arrays of all other wolves towards these top 3. Over multiple generations, the pack converges towards the combination of 8 columns that yield the absolute highest prediction accuracy possible.
+
+## 4. Parameter Details: Wolves and Epochs
+- **How many Wolves?**: 
+    - We are running exactly **10 wolves** (`n_wolves=10`) per generation. This means that 10 different combinations of dataset columns are created and tested simultaneously at any given time.
+- **How many Epochs (Iterations)?**: 
+    - Inside the Flask app (`app.py`), the algorithm repeats the hunting loop for **10 epochs** if a user specifically requests a certain number of features, or defaults to **15 epochs** if no target boundary is set.
+    - Inside our `scratch_evaluate.py` test suite, we forced it to strictly run for precisely **10 epochs**.
+    - With every passing epoch, the Alpha's fitness (the best F1 score out of the pack) typically improves as the search gets narrowed down, reaching peak convergence by the tenth or fifteenth loop.
