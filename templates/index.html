@@ -1,279 +1,475 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Heart Disease GWO Predictor</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
-        .form-select {
-            width: 100%;
-            padding: 8px 12px;
-            margin-bottom: 20px;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-            font-family: inherit;
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>CardioAI | Medical Intelligence Sanctuary</title>
+    <!-- Add Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#df8eff",
+                        "primary-dim": "#bb00fc",
+                        "secondary": "#00e3fd",
+                        "secondary-dim": "#00d4ec",
+                        "tertiary": "#ac89ff",
+                        "background": "#0c0c1f",
+                        "surface": "#0c0c1f",
+                        "surface-container-low": "#111126",
+                        "surface-container-high": "#1d1d36",
+                        "surface-container-lowest": "#000000",
+                        "on-background": "#e5e3fe",
+                        "on-surface": "#e5e3fe",
+                        "on-surface-variant": "#aaa8c2",
+                        "on-primary": "#4f006d",
+                        "outline-variant": "#46465c",
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Plus Jakarta Sans"]
+                    }
+                }
+            }
         }
+    </script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0c0c1f; color: #e5e3fe; overflow-x: hidden; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { background: rgba(35, 35, 63, 0.4); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .neon-glow-primary { box-shadow: 0 0 20px rgba(223, 142, 255, 0.2); }
+        .neon-glow-secondary { box-shadow: 0 0 20px rgba(0, 227, 253, 0.2); }
+        .risk-high { background: rgba(255, 110, 132, 0.1); border: 1px solid #ff6e84; box-shadow: 0 0 20px rgba(255, 110, 132, 0.2); }
+        .risk-low { background: rgba(46, 204, 113, 0.1); border: 1px solid #2ecc71; box-shadow: 0 0 20px rgba(46, 204, 113, 0.2); }
     </style>
 </head>
-<body>
-    <div class="app-container">
-        <header class="app-header">
-            <h1>Heart Disease Web Predictor</h1>
-            <p>Powered by Logistic Regression & Gray Wolf Optimization</p>
-        </header>
+<body class="bg-background text-on-background min-h-screen selection:bg-primary/30">
 
-        <div class="content-wrapper">
-            <!-- Upload Section -->
-            <section class="card" id="upload-section">
-                <h2>1. Upload Dataset</h2>
-                <div class="upload-area">
-                    <input type="file" id="datasetFile" accept=".csv">
-                    <button class="btn primary" id="uploadBtn">Upload Data</button>
-                    <p id="uploadStatus" class="status-text"></p>
-                </div>
-            </section>
+<!-- Ambient Background Blobs -->
+<div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+    <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 blur-[120px] rounded-full"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary/10 blur-[120px] rounded-full"></div>
+    <div class="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-tertiary/5 blur-[100px] rounded-full"></div>
+</div>
 
-            <!-- Configuration & Training -->
-            <section class="card disabled" id="training-section">
-                <h2>2. Feature Selection Configuration</h2>
-                <div class="config-area">
-                    <label for="classificationMode">Select Classification Setup:</label>
-                    <select id="classificationMode" class="form-select" disabled>
-                        <option value="binary" selected>Binary Classification (Legacy)</option>
-                        <option value="multiclass">3-Class Multiclass (SMOTE + Custom Tuning)</option>
-                    </select>
+<main class="max-w-7xl mx-auto px-6 py-12 space-y-12">
+    <!-- Header Section -->
+    <header class="space-y-2 mt-8">
+        <h1 class="font-headline text-5xl font-extrabold tracking-tight text-on-surface">
+            Cardiovascular Diagnostic <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Intelligence</span>
+        </h1>
+        <p class="font-body text-on-surface-variant max-w-2xl">High-fidelity interface for early heart disease detection and predictive modeling. Secure HIPAA-compliant environment.</p>
+    </header>
 
-                    <label for="nFeatures">Number of predictive features to keep (Min: 7)</label>
-                    <div class="slider-container">
-                        <input type="range" id="nFeatures" min="7" max="14" value="7" disabled>
-                        <span id="nFeaturesLabel" class="badge">7</span>
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        <!-- Section 1: Data Engine -->
+        <section class="md:col-span-4 glass-card rounded-xl p-8 flex flex-col justify-center items-center text-center space-y-6">
+            <div class="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                <span class="material-symbols-outlined text-primary text-4xl">upload_file</span>
+            </div>
+            <div>
+                <h2 class="font-headline text-xl font-bold">1. Upload Dataset</h2>
+                <p class="font-body text-sm text-on-surface-variant mt-2">Feed the clinical training data into the engine for real-time synthesis.</p>
+            </div>
+            <div class="w-full">
+                <label class="group relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-outline-variant/30 rounded-lg cursor-pointer hover:border-primary/50 transition-all bg-surface-container-low/50">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <p class="text-xs text-on-surface-variant">Drop .CSV or click here</p>
                     </div>
-                    <button class="btn primary" id="trainBtn" disabled>Run Optimization & Train</button>
-                    <p id="trainStatus" class="status-text"></p>
-                    <div id="selectedFeaturesList" class="tags-container"></div>
-                </div>
-            </section>
+                    <input class="hidden" type="file" id="datasetFile" accept=".csv" />
+                </label>
+            </div>
+            <button id="uploadBtn" class="w-full py-3 px-6 rounded-lg bg-gradient-to-r from-primary to-primary-dim text-on-primary font-bold shadow-lg neon-glow-primary active:scale-95 transition-transform disabled:opacity-50">
+                Acknowledge Load
+            </button>
+            <p id="uploadStatus" class="font-bold text-xs"></p>
+        </section>
 
-            <!-- Evaluation -->
-            <section class="card disabled" id="evaluation-section">
-                <h2>3. Model Evaluation</h2>
-                <button class="btn secondary" id="evaluateBtn" disabled>Evaluate Accuracy</button>
-                <div id="evalResults" class="metrics-grid hidden">
-                    <div class="metric">
-                        <span>Accuracy</span>
-                        <h3 id="accValue">-</h3>
+        <!-- Section 2: Optimization Core -->
+        <section class="md:col-span-8 glass-card rounded-xl p-8 space-y-8 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-secondary">settings_input_component</span>
+                        <h2 class="font-headline text-xl font-bold">2. Feature Selection Configuration</h2>
                     </div>
-                    <div class="metric">
-                        <span>F1 Score</span>
-                        <h3 id="f1Value">-</h3>
-                    </div>
+                    <span class="bg-secondary/10 text-secondary text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full border border-secondary/20">Active Optimizer</span>
                 </div>
-            </section>
-
-            <!-- Prediction -->
-            <section class="card disabled" id="prediction-section">
-                <h2>4. Dynamic Prediction Form</h2>
-                <p>Fill out the fields dynamically selected by GWO:</p>
-                <form id="predictForm" class="hidden"></form>
-                <button class="btn success hidden" id="predictBtn">Predict Risk</button>
-                <div id="predictionResult" class="result-box hidden">
-                    <h3 id="predClass"></h3>
-                    <p id="predProb"></p>
-                </div>
-            </section>
-        </div>
-    </div>
-
-    <script>
-        const DOM = {
-            uploadBtn: document.getElementById('uploadBtn'),
-            fileInput: document.getElementById('datasetFile'),
-            uploadStatus: document.getElementById('uploadStatus'),
-
-            trainSection: document.getElementById('training-section'),
-            classificationMode: document.getElementById('classificationMode'),
-            nFeatures: document.getElementById('nFeatures'),
-            nFeaturesLabel: document.getElementById('nFeaturesLabel'),
-            trainBtn: document.getElementById('trainBtn'),
-            trainStatus: document.getElementById('trainStatus'),
-            selectedFeaturesList: document.getElementById('selectedFeaturesList'),
-
-            evalSection: document.getElementById('evaluation-section'),
-            evaluateBtn: document.getElementById('evaluateBtn'),
-            evalResults: document.getElementById('evalResults'),
-            accValue: document.getElementById('accValue'),
-            f1Value: document.getElementById('f1Value'),
-
-            predictSection: document.getElementById('prediction-section'),
-            predictForm: document.getElementById('predictForm'),
-            predictBtn: document.getElementById('predictBtn'),
-            predictionResult: document.getElementById('predictionResult'),
-            predClass: document.getElementById('predClass'),
-            predProb: document.getElementById('predProb')
-        };
-
-        DOM.nFeatures.addEventListener('input', (e) => {
-            DOM.nFeaturesLabel.textContent = e.target.value;
-        });
-
-        DOM.uploadBtn.addEventListener('click', async () => {
-            if (!DOM.fileInput.files[0]) return alert("Select a CSV file first!");
-            const formData = new FormData();
-            formData.append('file', DOM.fileInput.files[0]);
-
-            DOM.uploadStatus.textContent = "Uploading...";
-            DOM.uploadBtn.disabled = true;
-
-            try {
-                const res = await fetch('/upload', { method: 'POST', body: formData });
-                const json = await res.json();
-
-                if (res.ok) {
-                    DOM.uploadStatus.textContent = `Success! Discovered ${json.total_features} features.`;
-                    DOM.uploadStatus.className = "status-text success";
-                    
-                    DOM.nFeatures.max = json.total_features;
-                    DOM.nFeatures.disabled = false;
-                    DOM.classificationMode.disabled = false;
-                    DOM.trainBtn.disabled = false;
-                    DOM.trainSection.classList.remove('disabled');
-                } else {
-                    throw new Error(json.error);
-                }
-            } catch (err) {
-                DOM.uploadStatus.textContent = `Error: ${err.message}`;
-                DOM.uploadStatus.className = "status-text error";
-            } finally {
-                DOM.uploadBtn.disabled = false;
-            }
-        });
-
-        DOM.trainBtn.addEventListener('click', async () => {
-            DOM.trainStatus.textContent = "Training... (This may take a moment)";
-            DOM.trainStatus.className = "status-text";
-            DOM.trainBtn.disabled = true;
-
-            try {
-                const res = await fetch('/train', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        n_features: DOM.nFeatures.value,
-                        classification_mode: DOM.classificationMode.value
-                    }) 
-                });
-                const json = await res.json();
-
-                if (res.ok) {
-                    DOM.trainStatus.textContent = json.message || "Optimization complete!";
-                    DOM.trainStatus.className = "status-text success";
-                    
-                    DOM.selectedFeaturesList.innerHTML = json.selected_features.map(f => `<span class="tag">${f}</span>`).join('');
-
-                    DOM.evalSection.classList.remove('disabled');
-                    DOM.evaluateBtn.disabled = false;
-                    DOM.predictSection.classList.remove('disabled');
-                    DOM.predictForm.classList.remove('hidden');
-                    DOM.predictBtn.classList.remove('hidden');
-
-                    DOM.predictForm.innerHTML = json.selected_features.map(f => `
-                        <div class="input-group">
-                            <label for="inp_${f}">${f.toUpperCase()}</label>
-                            <input type="text" id="inp_${f}" name="${f}" required placeholder="Enter custom value">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] uppercase tracking-widest text-secondary font-bold">Inference Model</label>
+                            <select id="classificationMode" class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-all" disabled>
+                                <option value="binary">Binary Classification (Legacy)</option>
+                                <option value="multiclass">Multiclass (3-Class SMOTE)</option>
+                            </select>
                         </div>
-                    `).join('');
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] uppercase tracking-widest text-secondary font-bold">Feature Threshold</label>
+                            <input id="nFeatures" type="number" min="7" max="14" value="7" disabled class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-all text-white"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 space-y-4">
+                <button id="trainBtn" disabled class="w-full py-4 rounded-lg bg-surface-container-high border border-primary/40 text-primary font-bold hover:bg-primary/20 transition-all font-headline tracking-widest text-sm uppercase disabled:opacity-50">
+                    Initialize GWO Analysis
+                </button>
+                <p id="trainStatus" class="font-bold text-xs text-center text-on-surface-variant"></p>
+                <div id="selectedFeaturesList" class="flex flex-wrap gap-2 justify-center"></div>
+            </div>
+        </section>
 
-                } else {
-                    throw new Error(json.error);
+        <!-- Section 3: Performance Matrix with Chart.js -->
+        <section class="md:col-span-12 glass-card rounded-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 opacity-50 pointer-events-none transition-opacity duration-500" id="evaluation-section">
+            <div class="lg:col-span-4 p-8 border-r border-white/5 space-y-8 flex flex-col justify-between bg-surface-container-highest">
+                <div>
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="material-symbols-outlined text-tertiary">query_stats</span>
+                        <h2 class="font-headline text-xl font-bold">3. Model Evaluation</h2>
+                    </div>
+                    
+                    <div class="space-y-6">
+                        <div class="p-6 rounded-xl bg-surface-container-lowest border border-white/5 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 p-2"><span class="text-[8px] font-black text-tertiary uppercase">Confidence</span></div>
+                            <p class="text-xs text-on-surface-variant mb-1 font-bold uppercase tracking-tighter">Model Accuracy</p>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-4xl font-black text-primary" id="accValue">--<span class="text-xl">%</span></span>
+                            </div>
+                        </div>
+                        <div class="p-6 rounded-xl bg-surface-container-lowest border border-white/5 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 p-2"><span class="text-[8px] font-black text-secondary uppercase">Balance</span></div>
+                            <p class="text-xs text-on-surface-variant mb-1 font-bold uppercase tracking-tighter">F1 Score</p>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-4xl font-black text-secondary" id="f1Value">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button id="evaluateBtn" class="w-full py-4 border border-outline-variant/30 rounded-lg text-on-surface text-sm font-bold hover:bg-white/5 transition-all">Evaluate Performance</button>
+            </div>
+            
+            <div class="lg:col-span-8 p-8 bg-surface-container-low/30 relative">
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h3 class="font-headline text-lg font-bold">Accuracy Convergence</h3>
+                        <p class="text-xs text-on-surface-variant">Real-time dynamic visualization of accuracy over training runs.</p>
+                    </div>
+                </div>
+                <!-- Dynamic Chart Container -->
+                <div class="relative h-64 w-full">
+                    <canvas id="accuracyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Clinical Predictor -->
+        <section class="md:col-span-12 glass-card rounded-xl p-8 space-y-8 opacity-50 pointer-events-none transition-opacity duration-500" id="prediction-section">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary">monitor_heart</span>
+                <h2 class="font-headline text-xl font-bold">4. Dynamic Prediction Form</h2>
+            </div>
+            
+            <div class="bg-surface-container-lowest/50 rounded-xl p-12 border border-dashed border-white/5 flex flex-col items-center justify-center space-y-6">
+                <!-- Dynamic Form Injected Here -->
+                <form id="predictForm" class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl hidden"></form>
+                
+                <button id="predictBtn" class="py-4 px-12 rounded-lg bg-gradient-to-r from-secondary to-secondary-dim text-on-secondary font-bold shadow-lg neon-glow-secondary active:scale-95 transition-transform hidden mt-4">
+                    Predict Clinical Risk
+                </button>
+                
+                <!-- Result Box -->
+                <div id="predictionResult" class="hidden rounded-xl p-6 mt-8 w-full max-w-md text-center transition-all">
+                    <h3 id="predClass" class="text-xl font-bold font-headline mb-2"></h3>
+                    <p id="predProb" class="text-sm opacity-80 font-body"></p>
+                </div>
+            </div>
+        </section>
+        
+    </div>
+</main>
+
+<script>
+    // Elements Setup
+    const DOM = {
+        uploadBtn: document.getElementById('uploadBtn'),
+        fileInput: document.getElementById('datasetFile'),
+        uploadStatus: document.getElementById('uploadStatus'),
+
+        classificationMode: document.getElementById('classificationMode'),
+        nFeatures: document.getElementById('nFeatures'),
+        trainBtn: document.getElementById('trainBtn'),
+        trainStatus: document.getElementById('trainStatus'),
+        selectedFeaturesList: document.getElementById('selectedFeaturesList'),
+
+        evalSection: document.getElementById('evaluation-section'),
+        evaluateBtn: document.getElementById('evaluateBtn'),
+        accValue: document.getElementById('accValue'),
+        f1Value: document.getElementById('f1Value'),
+
+        predictSection: document.getElementById('prediction-section'),
+        predictForm: document.getElementById('predictForm'),
+        predictBtn: document.getElementById('predictBtn'),
+        predictionResult: document.getElementById('predictionResult'),
+        predClass: document.getElementById('predClass'),
+        predProb: document.getElementById('predProb')
+    };
+
+    // Chart.js Setup
+    const ctx = document.getElementById('accuracyChart').getContext('2d');
+    
+    // Create a beautiful gradient for the line
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(0, 227, 253, 0.4)');
+    gradient.addColorStop(1, 'rgba(0, 227, 253, 0)');
+
+    let accChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [], // e.g. "Run 1", "Run 2"
+            datasets: [{
+                label: 'Test Accuracy (%)',
+                data: [],
+                borderColor: '#00e3fd',
+                backgroundColor: gradient,
+                borderWidth: 2,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#00e3fd',
+                pointHoverBackgroundColor: '#df8eff',
+                pointHoverBorderColor: '#df8eff',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.4 // Smooth curves
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                y: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
                 }
-            } catch (err) {
-                DOM.trainStatus.textContent = `Error: ${err.message}`;
-                DOM.trainStatus.className = "status-text error";
-            } finally {
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    suggestedMin: 80,
+                    suggestedMax: 100,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#aaa8c2', callback: value => value + '%' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#aaa8c2' }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    let runCounter = 1;
+
+    // ----- LOGIC BINDINGS -----
+    DOM.fileInput.addEventListener('change', () => {
+        if(DOM.fileInput.files.length > 0) {
+            DOM.uploadStatus.textContent = DOM.fileInput.files[0].name + " selected. Ready for init.";
+            DOM.uploadStatus.className = "text-primary mt-2 text-xs";
+        }
+    });
+
+    // 1. UPLOAD
+    DOM.uploadBtn.addEventListener('click', async () => {
+        if (!DOM.fileInput.files[0]) return alert("Select a CSV file first!");
+        const formData = new FormData();
+        formData.append('file', DOM.fileInput.files[0]);
+
+        DOM.uploadStatus.textContent = "Synthesizing data...";
+        DOM.uploadBtn.disabled = true;
+
+        try {
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const json = await res.json();
+
+            if (res.ok) {
+                DOM.uploadStatus.textContent = `Success. Found ${json.total_features} total features.`;
+                DOM.uploadStatus.className = "text-green-400 mt-2 text-xs";
+                
+                DOM.nFeatures.max = json.total_features;
+                DOM.nFeatures.disabled = false;
+                DOM.classificationMode.disabled = false;
                 DOM.trainBtn.disabled = false;
+            } else {
+                throw new Error(json.error);
             }
-        });
+        } catch (err) {
+            DOM.uploadStatus.textContent = `Error: ${err.message}`;
+            DOM.uploadStatus.className = "text-red-400 mt-2 text-xs";
+        } finally {
+            DOM.uploadBtn.disabled = false;
+        }
+    });
 
-        DOM.evaluateBtn.addEventListener('click', async () => {
-            DOM.evaluateBtn.disabled = true;
-            DOM.evaluateBtn.textContent = "Evaluating...";
-            
-            try {
-                const res = await fetch('/evaluate', { method: 'POST' });
-                const json = await res.json();
+    // 2. TRAIN
+    DOM.trainBtn.addEventListener('click', async () => {
+        DOM.trainStatus.textContent = "Optimization running (Gray Wolf Mechanics calculating)...";
+        DOM.trainStatus.className = "text-primary mt-2 text-xs animate-pulse";
+        DOM.trainBtn.disabled = true;
 
-                if (res.ok) {
-                    DOM.accValue.textContent = (json.accuracy * 100).toFixed(2) + "%";
-                    DOM.f1Value.textContent = (json.f1 * 100).toFixed(2) + "%";
-                    DOM.evalResults.classList.remove('hidden');
-                    DOM.evaluateBtn.textContent = "Re-Evaluate";
-                } else throw new Error(json.error);
-            } catch (err) {
-                alert(`Error: ${err.message}`);
-                DOM.evaluateBtn.textContent = "Evaluate Accuracy";
+        try {
+            const res = await fetch('/train', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    n_features: DOM.nFeatures.value,
+                    classification_mode: DOM.classificationMode.value
+                }) 
+            });
+            const json = await res.json();
+
+            if (res.ok) {
+                DOM.trainStatus.textContent = json.message || "Optimization complete!";
+                DOM.trainStatus.className = "text-green-400 mt-2 text-xs";
+                
+                DOM.selectedFeaturesList.innerHTML = json.selected_features.map(f => `
+                    <span class="bg-surface-container-lowest border border-white/10 px-3 py-1 rounded text-xs text-on-surface-variant">${f}</span>
+                `).join('');
+
+                // Unlock Eval and Predict
+                DOM.evalSection.classList.remove('opacity-50', 'pointer-events-none');
+                DOM.predictSection.classList.remove('opacity-50', 'pointer-events-none');
+                
+                DOM.predictForm.classList.remove('hidden');
+                DOM.predictBtn.classList.remove('hidden');
+
+                DOM.predictForm.innerHTML = json.selected_features.map(f => `
+                    <div class="space-y-1">
+                        <label for="inp_${f}" class="text-[10px] uppercase tracking-widest text-[#aaa8c2] font-bold inline-block mb-1">${f}</label>
+                        <input type="text" id="inp_${f}" name="${f}" required placeholder="0.0" class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all text-white">
+                    </div>
+                `).join('');
+
+                // Auto-evaluate immediately to show the graph animation natively!
+                await evaluatePerformance();
+
+            } else {
+                throw new Error(json.error);
             }
-            DOM.evaluateBtn.disabled = false;
-        });
+        } catch (err) {
+            DOM.trainStatus.textContent = `Error: ${err.message}`;
+            DOM.trainStatus.className = "text-red-400 mt-2 text-xs";
+        } finally {
+            DOM.trainBtn.disabled = false;
+        }
+    });
 
-        DOM.predictBtn.addEventListener('click', async () => {
-            const formData = new FormData(DOM.predictForm);
-            const data = Object.fromEntries(formData.entries());
-            
-            if (Object.values(data).some(v => v === "")) {
-                return alert("Please fill all fields.");
-            }
+    // 3. EVALUATE
+    const evaluatePerformance = async () => {
+        DOM.evaluateBtn.disabled = true;
+        DOM.evaluateBtn.textContent = "Calculating...";
+        
+        try {
+            const res = await fetch('/evaluate', { method: 'POST' });
+            const json = await res.json();
 
-            DOM.predictBtn.disabled = true;
-            DOM.predictBtn.textContent = "Predicting...";
+            if (res.ok) {
+                let accPercent = (json.accuracy * 100).toFixed(2);
+                let f1Percent = json.f1.toFixed(3);
+                
+                DOM.accValue.innerHTML = `${accPercent}<span class="text-xl">%</span>`;
+                DOM.f1Value.textContent = f1Percent;
+                DOM.evaluateBtn.textContent = "Re-Evaluate Model";
 
-            try {
-                const res = await fetch('/predict', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                const json = await res.json();
+                // ANIMATE CHART.JS
+                accChart.data.labels.push(`Run ${runCounter}`);
+                accChart.data.datasets[0].data.push(json.accuracy * 100);
+                accChart.update();
+                runCounter++;
 
-                if (res.ok) {
-                    DOM.predictionResult.classList.remove('hidden');
-                    let riskClassStr = "";
-                    let riskTextStr = "";
-                    
-                    if (json.mode === "binary") {
-                         riskClassStr = json.class === 1 ? "risk-high" : "risk-low";
-                         riskTextStr = json.class === 1 ? "⚠️ High Risk (Disease Detected)" : "✅ Low Risk (No disease)";
-                    } else {
-                         if (json.class === 2) {
-                             riskClassStr = "risk-high";
-                             riskTextStr = "🛑 High Risk (Severe disease)";
-                         } else if (json.class === 1) {
-                             riskClassStr = "risk-high";
-                             riskTextStr = "⚠️ Moderate Risk (Mild disease)";
-                         } else {
-                             riskClassStr = "risk-low";
-                             riskTextStr = "✅ Low Risk (No disease)";
-                         }
-                    }
-                    DOM.predictionResult.className = `result-box ${riskClassStr}`;
-                    DOM.predClass.textContent = riskTextStr;
-                    
-                    // Format probabilities conditionally
-                    if (json.mode === "binary") {
-                         DOM.predProb.textContent = `Probability: ${(json.probabilities[1] * 100).toFixed(2)}%`;
-                    } else {
-                         const probStr = json.probabilities.map((p, i) => `Class ${i}: ${(p*100).toFixed(1)}%`).join(' | ');
-                         DOM.predProb.textContent = `Probabilities: ${probStr}`;
-                    }
-                } else throw new Error(json.error);
-            } catch (err) {
-                alert(`Error: ${err.message}`);
-            } finally {
-                DOM.predictBtn.disabled = false;
-                DOM.predictBtn.textContent = "Predict Risk";
-            }
-        });
-    </script>
+            } else throw new Error(json.error);
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+            DOM.evaluateBtn.textContent = "Evaluate Performance";
+        }
+        DOM.evaluateBtn.disabled = false;
+    };
+    
+    DOM.evaluateBtn.addEventListener('click', evaluatePerformance);
+
+    // 4. PREDICT
+    DOM.predictBtn.addEventListener('click', async () => {
+        const formData = new FormData(DOM.predictForm);
+        const data = Object.fromEntries(formData.entries());
+        
+        if (Object.values(data).some(v => v === "")) {
+            return alert("Please fill all fields.");
+        }
+
+        DOM.predictBtn.disabled = true;
+
+        try {
+            const res = await fetch('/predict', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const json = await res.json();
+
+            if (res.ok) {
+                DOM.predictionResult.classList.remove('hidden');
+                let riskClassStr = "";
+                let riskTextStr = "";
+                
+                if (json.mode === "binary") {
+                        riskClassStr = json.class === 1 ? "risk-high" : "risk-low";
+                        riskTextStr = json.class === 1 ? "⚠️ High Risk (Disease Detected)" : "✅ Low Risk (No disease)";
+                } else {
+                        if (json.class === 2) {
+                            riskClassStr = "risk-high";
+                            riskTextStr = "🛑 High Risk (Severe disease)";
+                        } else if (json.class === 1) {
+                            riskClassStr = "risk-high";
+                            riskTextStr = "⚠️ Moderate Risk (Mild disease)";
+                        } else {
+                            riskClassStr = "risk-low";
+                            riskTextStr = "✅ Low Risk (No disease)";
+                        }
+                }
+                
+                DOM.predictionResult.className = `result-box mt-8 w-full max-w-md text-center rounded-xl p-6 transition-all ${riskClassStr}`;
+                DOM.predClass.textContent = riskTextStr;
+                
+                // Format probabilities conditionally
+                if (json.mode === "binary") {
+                        DOM.predProb.textContent = `Probability: ${(json.probabilities[1] * 100).toFixed(2)}%`;
+                } else {
+                        const probStr = json.probabilities.map((p, i) => `C${i}: ${(p*100).toFixed(1)}%`).join('  |  ');
+                        DOM.predProb.textContent = `Distribution: ${probStr}`;
+                }
+            } else throw new Error(json.error);
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        } finally {
+            DOM.predictBtn.disabled = false;
+        }
+    });
+
+</script>
 </body>
 </html>
