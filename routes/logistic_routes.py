@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
 from state import app_state
 from utils.preprocessing import transform_features
 from ml.logistic.gwo import gwo_binary, gwo_multiclass
@@ -120,6 +121,12 @@ def train():
             y_proba = model.predict_proba(X_test[:, selected_indices])[:, 1]
             app_state.lr_metrics['y_test'] = y_test_target.tolist()
             app_state.lr_metrics['y_proba'] = y_proba.tolist()
+            app_state.lr_metrics['roc_auc'] = roc_auc_score(y_test_target, y_proba)
+
+            tn, fp = app_state.lr_metrics["confusion_matrix"][0]
+            fn, tp = app_state.lr_metrics["confusion_matrix"][1]
+            specificity = tn / (tn + fp) if (tn + fp) else 0.0
+            app_state.lr_metrics["specificity"] = specificity
         else:
             app_state.lr_metrics = evaluate_multiclass(model, X_test, y_test_target, best_wolf)
 

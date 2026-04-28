@@ -1,6 +1,9 @@
 from flask import Blueprint, render_template, request, jsonify
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score, balanced_accuracy_score, confusion_matrix, f1_score,
+    precision_score, recall_score
+)
 from state import app_state
 from utils.preprocessing import transform_features
 from ml.svm.model import tune_and_train_svm
@@ -69,6 +72,9 @@ def train():
         y_pred = model.predict(X_test)
         acc = accuracy_score(y_test_target, y_pred)
         f1 = f1_score(y_test_target, y_pred, average="weighted", zero_division=0)
+        precision = precision_score(y_test_target, y_pred, average="weighted", zero_division=0)
+        recall = recall_score(y_test_target, y_pred, average="weighted", zero_division=0)
+        balanced_acc = balanced_accuracy_score(y_test_target, y_pred)
         cm = confusion_matrix(y_test_target, y_pred).tolist()
         
         # For ROC curve
@@ -80,8 +86,12 @@ def train():
             fpr, tpr, _ = roc_curve(y_test_target, y_proba[:, 1])
             roc_auc = auc(fpr, tpr)
             roc_data = {"fpr": fpr.tolist(), "tpr": tpr.tolist(), "auc": roc_auc}
+            tn, fp = cm[0]
+            fn, tp = cm[1]
+            specificity = tn / (tn + fp) if (tn + fp) else 0.0
         else:
             y_proba_for_roc = y_proba.tolist()
+            specificity = None
 
         app_state.svm_model = model
         app_state.svm_X_test = X_test
@@ -90,6 +100,10 @@ def train():
         app_state.svm_metrics = {
             "accuracy": acc,
             "f1": f1,
+            "precision": precision,
+            "recall": recall,
+            "balanced_accuracy": balanced_acc,
+            "specificity": specificity,
             "confusion_matrix": cm,
             "y_test": y_test_target.tolist(),
             "y_proba": y_proba_for_roc,

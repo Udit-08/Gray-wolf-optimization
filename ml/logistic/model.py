@@ -1,6 +1,9 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
+from sklearn.metrics import (
+    accuracy_score, balanced_accuracy_score, classification_report,
+    confusion_matrix, f1_score, precision_score, recall_score
+)
 from sklearn.model_selection import cross_val_score
 
 RANDOM_STATE = 42
@@ -31,6 +34,9 @@ def evaluate_multiclass(model, X_test, y_test, feature_mask):
 
     acc = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
+    precision = precision_score(y_test, y_pred, average="weighted", zero_division=0)
+    recall = recall_score(y_test, y_pred, average="weighted", zero_division=0)
+    balanced_acc = balanced_accuracy_score(y_test, y_pred)
     cm = confusion_matrix(y_test, y_pred)
     
     print("\n--- Multiclass Evaluation Results ---")
@@ -40,7 +46,14 @@ def evaluate_multiclass(model, X_test, y_test, feature_mask):
     print("Classification Report:\n", classification_report(y_test, y_pred, zero_division=0))
     print("--------------------------\n")
 
-    return {"accuracy": acc, "f1": f1, "confusion_matrix": cm.tolist()}
+    return {
+        "accuracy": acc,
+        "f1": f1,
+        "precision": precision,
+        "recall": recall,
+        "balanced_accuracy": balanced_acc,
+        "confusion_matrix": cm.tolist()
+    }
     
 def train_model_multiclass(X_train, y_train, feature_mask, c_val=1.0):
     selected_idx = np.where(feature_mask == 1)[0]
@@ -72,9 +85,19 @@ def evaluate_binary(model, X_test, y_test, feature_mask):
 
     acc = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, average="weighted", zero_division=0)
+    precision = precision_score(y_test, y_pred, average="weighted", zero_division=0)
+    recall = recall_score(y_test, y_pred, average="weighted", zero_division=0)
+    balanced_acc = balanced_accuracy_score(y_test, y_pred)
     cm = confusion_matrix(y_test, y_pred).tolist()
 
-    return {"accuracy": acc, "f1": f1, "confusion_matrix": cm}
+    return {
+        "accuracy": acc,
+        "f1": f1,
+        "precision": precision,
+        "recall": recall,
+        "balanced_accuracy": balanced_acc,
+        "confusion_matrix": cm
+    }
     
 def train_model_binary(X_train, y_train, feature_mask):
     selected_idx = np.where(feature_mask == 1)[0]
