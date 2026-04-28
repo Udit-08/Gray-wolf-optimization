@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>CardioAI | Intelligence</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#df8eff",
+                        "primary-dim": "#bb00fc",
+                        "secondary": "#00e3fd",
+                        "secondary-dim": "#00d4ec",
+                        "tertiary": "#ac89ff",
+                        "background": "#0c0c1f",
+                        "surface": "#0c0c1f",
+                        "surface-container-low": "#111126",
+                        "surface-container-high": "#1d1d36",
+                        "surface-container-lowest": "#000000",
+                        "on-background": "#e5e3fe",
+                        "on-surface": "#e5e3fe",
+                        "on-surface-variant": "#aaa8c2",
+                        "on-primary": "#4f006d",
+                        "outline-variant": "#46465c",
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Plus Jakarta Sans"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0c0c1f; color: #e5e3fe; overflow-x: hidden; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { background: rgba(35, 35, 63, 0.4); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .neon-glow-primary { box-shadow: 0 0 20px rgba(223, 142, 255, 0.2); }
+        .neon-glow-secondary { box-shadow: 0 0 20px rgba(0, 227, 253, 0.2); }
+        .heatmap-cell { display: flex; align-items: center; justify-content: center; font-weight: bold; border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.05); }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-background text-on-background min-h-screen selection:bg-primary/30 flex">
+
+<!-- Ambient Background Blobs -->
+<div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+    <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 blur-[120px] rounded-full"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-secondary/10 blur-[120px] rounded-full"></div>
+</div>
+
+<!-- Sidebar Navigation -->
+<aside class="w-64 border-r border-white/5 bg-surface-container-lowest/50 backdrop-blur-md flex flex-col h-screen sticky top-0">
+    <div class="p-6 flex items-center gap-2 border-b border-white/5">
+        <span class="material-symbols-outlined text-primary text-3xl">ecg_heart</span>
+        <span class="font-headline font-bold text-xl tracking-tight">CardioAI</span>
+    </div>
+    
+    <nav class="flex-1 p-4 space-y-8 overflow-y-auto">
+        <!-- Section 1 -->
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-3 px-2">Data Engine</p>
+            <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm font-bold {% if request.path == '/' %}bg-white/10 text-primary{% else %}text-on-surface{% endif %}">
+                <span class="material-symbols-outlined text-sm">database</span> Global Dataset
+            </a>
+        </div>
+        
+        <!-- Section 2 -->
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-3 px-2">Logistic Regression</p>
+            <a href="/lr/predict_page" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm font-bold {% if request.path == '/lr/predict_page' %}bg-primary/10 text-primary{% else %}text-on-surface{% endif %}">
+                <span class="material-symbols-outlined text-sm">online_prediction</span> Train & Predict
+            </a>
+            <a href="/lr/analysis_page" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm font-bold {% if request.path == '/lr/analysis_page' %}bg-primary/10 text-primary{% else %}text-on-surface{% endif %}">
+                <span class="material-symbols-outlined text-sm">analytics</span> Deep Analysis
+            </a>
+        </div>
+
+        <!-- Section 3 -->
+        <div>
+            <p class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-3 px-2">Support Vector Machine</p>
+            <a href="/svm/predict_page" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm font-bold {% if request.path == '/svm/predict_page' %}bg-secondary/10 text-secondary{% else %}text-on-surface{% endif %}">
+                <span class="material-symbols-outlined text-sm">online_prediction</span> Train & Predict
+            </a>
+            <a href="/svm/analysis_page" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm font-bold {% if request.path == '/svm/analysis_page' %}bg-secondary/10 text-secondary{% else %}text-on-surface{% endif %}">
+                <span class="material-symbols-outlined text-sm">analytics</span> Deep Analysis
+            </a>
+        </div>
+    </nav>
+</aside>
+
+<!-- Main Content Area -->
+<main class="flex-1 p-8 lg:p-12 overflow-y-auto">
+    {% block content %}{% endblock %}
+</main>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

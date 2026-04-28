@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="space-y-2 mb-12 flex items-center justify-between">
+    <div>
+        <h1 class="font-headline text-4xl font-extrabold tracking-tight text-on-surface">
+            SVM <span class="text-transparent bg-clip-text bg-gradient-to-r from-secondary to-secondary-dim">Analysis</span>
+        </h1>
+        <p class="font-body text-on-surface-variant max-w-2xl mt-2">Deep metrics, confusion matrix, and ROC curve for the Exhaustive GridSearch SVM model.</p>
+    </div>
+    <button id="refreshBtn" class="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-lg border border-outline-variant/30 text-sm font-bold text-secondary">
+        <span class="material-symbols-outlined text-sm">refresh</span> Fetch Metrics
+    </button>
+</header>
+
+<div id="statusAlert" class="hidden p-4 rounded-lg text-sm font-bold flex items-center gap-2 mb-8"></div>
+
+<div id="dashboard" class="grid grid-cols-1 md:grid-cols-12 gap-6 opacity-0 transition-opacity duration-500 pointer-events-none">
+    
+    <div class="md:col-span-6 glass-card p-6 rounded-xl border-t-4 border-t-secondary">
+        <p class="text-xs text-on-surface-variant font-bold uppercase tracking-widest mb-1">Validation Accuracy</p>
+        <h3 class="text-4xl font-black text-secondary" id="val_acc">--%</h3>
+    </div>
+    <div class="md:col-span-6 glass-card p-6 rounded-xl">
+        <p class="text-xs text-on-surface-variant font-bold uppercase tracking-widest mb-1">F1-Score (Weighted)</p>
+        <h3 class="text-4xl font-black text-white" id="val_f1">--</h3>
+    </div>
+
+    <!-- ROC Curve (If Binary) -->
+    <div class="md:col-span-7 glass-card p-6 rounded-xl flex flex-col" id="rocCard">
+        <div class="flex items-center justify-between mb-1">
+            <h3 class="font-headline font-bold text-lg">ROC Curve</h3>
+            <span id="aucScore" class="bg-secondary/10 text-secondary text-xs px-2 py-1 rounded font-bold">AUC: --</span>
+        </div>
+        <p class="text-xs text-on-surface-variant mb-6">Receiver Operating Characteristic (Binary Only)</p>
+        <div class="flex-1 min-h-[300px] relative">
+            <canvas id="rocChart"></canvas>
+        </div>
+        <p id="rocNotice" class="text-xs text-secondary mt-2 hidden text-center">ROC Curve is not supported natively in this dashboard for Multiclass Mode.</p>
+    </div>
+
+    <!-- Confusion Matrix -->
+    <div class="md:col-span-5 glass-card p-6 rounded-xl">
+        <h3 class="font-headline font-bold text-lg mb-1 text-secondary">Confusion Matrix</h3>
+        <p class="text-xs text-on-surface-variant mb-6">True vs Predicted</p>
+        <div id="matrixContainer" class="w-full flex justify-center mt-8"></div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const DOM = {
+        refreshBtn: document.getElementById('refreshBtn'),
+        statusAlert: document.getElementById('statusAlert'),
+        dashboard: document.getElementById('dashboard'),
+        val_acc: document.getElementById('val_acc'),
+        val_f1: document.getElementById('val_f1'),
+        matrixContainer: document.getElementById('matrixContainer'),
+        rocCard: document.getElementById('rocCard'),
+        aucScore: document.getElementById('aucScore'),
+        rocNotice: document.getElementById('rocNotice')
+    };
+
+    let rocChart = null;
+
+    const showAlert = (msg, isError = false) => {
+        DOM.statusAlert.textContent = msg;
+        DOM.statusAlert.className = `p-4 rounded-lg text-sm font-bold flex items-center gap-2 mb-6 ${isError ? 'bg-red-500/10 text-red-400 border border-red-500/30' : 'bg-secondary/10 text-secondary border border-secondary/30'}`;
+        DOM.statusAlert.classList.remove('hidden');
+    };
+
+    const renderMatrix = (container, matrix, mode) => {
+        container.innerHTML = '';
+        const size = matrix.length;
+        const labels = mode === 'binary' ? ['Negative (0)', 'Positive (1)'] : ['Class 0', 'Class 1', 'Class 2'];
+        let maxVal = 0;
+        for(let i=0; i<size; i++) {
+            for(let j=0; j<size; j++) {
+                if(matrix[i][j] > maxVal) maxVal = matrix[i][j];
+            }
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = `grid gap-1`;
+        wrapper.style.gridTemplateColumns = `auto repeat(${size}, minmax(0, 1fr))`;
+        wrapper.appendChild(document.createElement('div'));
+        
+        for(let i=0; i<size; i++) {
+            const h = document.createElement('div');
+            h.className = "text-[10px] uppercase text-on-surface-variant font-bold text-center self-end pb-2";
+            h.innerHTML = `Pred<br>${labels[i]}`;
+            wrapper.appendChild(h);
+        }
+
+        for(let i=0; i<size; i++) {
+            const rh = document.createElement('div');
+            rh.className = "text-[10px] uppercase text-on-surface-variant font-bold text-right pr-4 self-center";
+            rh.innerHTML = `True<br>${labels[i]}`;
+            wrapper.appendChild(rh);
+            
+            for(let j=0; j<size; j++) {
+                const cell = document.createElement('div');
+                const val = matrix[i][j];
+                const intensity = maxVal === 0 ? 0 : Math.max(0.1, val / maxVal);
+                let colorBase = i === j ? `rgba(46, 204, 113, ${intensity})` : `rgba(255, 110, 132, ${intensity})`;
+                cell.className = "heatmap-cell aspect-square text-lg shadow-inner w-16 h-16";
+                cell.style.backgroundColor = colorBase;
+                cell.textContent = val;
+                wrapper.appendChild(cell);
+            }
+        }
+        container.appendChild(wrapper);
+    };
+
+    const fetchAndRender = async () => {
+        try {
+            DOM.refreshBtn.disabled = true;
+            DOM.statusAlert.classList.add('hidden');
+            
+            const res = await fetch('/svm/metrics');
+            const data = await res.json();
+            
+            if(!res.ok) throw new Error(data.error || "Failed to fetch metrics.");
+
+            DOM.val_acc.textContent = (data.metrics.accuracy * 100).toFixed(2) + "%";
+            DOM.val_f1.textContent = data.metrics.f1.toFixed(4);
+
+            renderMatrix(DOM.matrixContainer, data.metrics.confusion_matrix, data.mode);
+
+            // ROC Curve
+            const rocCtx = document.getElementById('rocChart');
+            if(rocChart) rocChart.destroy();
+            
+            if (data.mode === "binary" && data.metrics.roc) {
+                rocCtx.style.display = 'block';
+                DOM.rocNotice.classList.add('hidden');
+                DOM.aucScore.textContent = `AUC: ${data.metrics.roc.auc.toFixed(3)}`;
+                
+                const fpr = data.metrics.roc.fpr;
+                const tpr = data.metrics.roc.tpr;
+                
+                // Construct points
+                const pts = fpr.map((x, i) => ({x: x, y: tpr[i]}));
+
+                rocChart = new Chart(rocCtx.getContext('2d'), {
+                    type: 'scatter',
+                    data: {
+                        datasets: [
+                            {
+                                label: 'SVM ROC',
+                                data: pts,
+                                borderColor: '#00e3fd',
+                                backgroundColor: 'transparent',
+                                borderWidth: 2,
+                                showLine: true,
+                                tension: 0.2
+                            },
+                            {
+                                label: 'Random Guess',
+                                data: [{x: 0, y: 0}, {x: 1, y: 1}],
+                                borderColor: '#aaa8c2',
+                                borderDash: [5, 5],
+                                borderWidth: 1,
+                                showLine: true,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { title: {display: true, text: 'False Positive Rate', color: '#e5e3fe'}, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#aaa8c2' } },
+                            y: { title: {display: true, text: 'True Positive Rate', color: '#e5e3fe'}, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#aaa8c2' } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            } else {
+                rocCtx.style.display = 'none';
+                DOM.rocNotice.classList.remove('hidden');
+                DOM.aucScore.textContent = `AUC: N/A`;
+            }
+
+            DOM.dashboard.classList.remove('opacity-0', 'pointer-events-none');
+            showAlert("SVM Metrics successfully loaded.", false);
+
+        } catch (err) {
+            showAlert(`Error: ${err.message}. Have you initialized the training on the SVM Prediction page?`, true);
+        } finally {
+            DOM.refreshBtn.disabled = false;
+        }
+    };
+
+    fetchAndRender();
+    DOM.refreshBtn.addEventListener('click', fetchAndRender);
+</script>
+{% endblock %}

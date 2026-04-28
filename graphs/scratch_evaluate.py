@@ -15,6 +15,7 @@ from ml.model import (
     fitness_function_binary, train_model_binary, evaluate_binary,
     fitness_function_multiclass, train_model_multiclass, evaluate_multiclass
 )
+from svm_classifier import tune_and_train_svm
 
 def evaluate_metrics(model, X_test, y_test, feature_mask, is_multiclass=False):
     selected_idx = np.where(feature_mask == 1)[0]
@@ -138,6 +139,13 @@ def main():
     top_feature_idx_bin = selected_idx_bin[np.argmax(np.abs(coefs_bin))]
     print(f"Top Feature (Binary GWO): {feature_names_bin[top_feature_idx_bin]} (coef: {coefs_bin[np.argmax(np.abs(coefs_bin))]})")
     
+    # === SVM Classification (All Features) ===
+    print("\n--- TUNED SVM (All Features) Binary ---")
+    best_svm_bin = tune_and_train_svm(X_train_bin, y_train_bin)
+    acc_svm_bin, p_svm_bin, r_svm_bin, f1_svm_bin, n_feat_svm_bin, cm_svm_bin = evaluate_metrics(best_svm_bin, X_test_bin, y_test_bin, mask_all, False)
+    print(f"Accuracy: {acc_svm_bin:.4f}, Precision: {p_svm_bin:.4f}, Recall: {r_svm_bin:.4f}, F1: {f1_svm_bin:.4f}, Features: {int(n_feat_svm_bin)}")
+    print_confusion_matrix(cm_svm_bin, title="Tuned SVM Binary Confusion Matrix")
+    
     # === MULTICLASS CLASSIFICATION (3-class) ===
     print("\n--- MULTICLASS CLASSIFICATION ---")
     train_idx, test_idx = train_test_split(
@@ -189,6 +197,13 @@ def main():
     coefs_mc_abs_mean = np.mean(np.abs(model_gwo_mc.coef_), axis=0)
     top_feature_idx_mc = selected_idx_mc[np.argmax(coefs_mc_abs_mean)]
     print(f"Top Feature (Multiclass GWO): {feature_names_mc[top_feature_idx_mc]} (mean absolute coef: {np.max(coefs_mc_abs_mean)})")
+
+    # === SVM Classification (All Features) ===
+    print("\n--- TUNED SVM (All Features) Multiclass ---")
+    best_svm_mc = tune_and_train_svm(X_train_res, y_train_res)
+    acc_svm_mc, p_svm_mc, r_svm_mc, f1_svm_mc, n_feat_svm_mc, cm_svm_mc = evaluate_metrics(best_svm_mc, X_test_mc, y_test_mc, mask_all, True)
+    print(f"Accuracy: {acc_svm_mc:.4f}, Precision: {p_svm_mc:.4f}, Recall: {r_svm_mc:.4f}, F1: {f1_svm_mc:.4f}, Features: {int(n_feat_svm_mc)}")
+    print_confusion_matrix(cm_svm_mc, title="Tuned SVM Multiclass Confusion Matrix")
 
 if __name__ == "__main__":
     main()

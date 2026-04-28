@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="space-y-2 mb-12 flex items-center justify-between">
+    <div>
+        <h1 class="font-headline text-4xl font-extrabold tracking-tight text-on-surface">
+            Support Vector Machine <span class="text-transparent bg-clip-text bg-gradient-to-r from-secondary to-secondary-dim">(GridSearch)</span>
+        </h1>
+        <p class="font-body text-on-surface-variant max-w-2xl mt-2">Configure, train, and predict using the extensively tuned Support Vector Machine.</p>
+    </div>
+    <a href="/svm/analysis_page" class="text-xs uppercase tracking-widest font-bold text-secondary flex items-center gap-1 hover:text-white transition-colors">
+        View SVM Analysis <span class="material-symbols-outlined text-sm">arrow_forward</span>
+    </a>
+</header>
+
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+
+    <!-- Optimization Core -->
+    <section class="md:col-span-12 glass-card rounded-xl p-8 space-y-8 flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-secondary">settings_input_component</span>
+                    <h2 class="font-headline text-xl font-bold">Model Configuration</h2>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-8">
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-widest text-secondary font-bold">Inference Mode</label>
+                        <select id="classificationMode" class="w-full max-w-md bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-all">
+                            <option value="binary">Binary Classification</option>
+                            <option value="multiclass">Multiclass (3-Class SMOTE)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 space-y-4">
+            <button id="trainBtn" class="w-full py-4 rounded-lg bg-surface-container-high border border-secondary/40 text-secondary font-bold hover:bg-secondary/20 transition-all font-headline tracking-widest text-sm uppercase">
+                Initialize Exhaustive SVM Training
+            </button>
+            <p id="trainStatus" class="font-bold text-xs text-center text-on-surface-variant"></p>
+        </div>
+    </section>
+
+    <!-- Clinical Predictor -->
+    <section class="md:col-span-12 glass-card rounded-xl p-8 space-y-8 opacity-50 pointer-events-none transition-opacity duration-500" id="prediction-section">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-secondary">monitor_heart</span>
+                <h2 class="font-headline text-xl font-bold">Dynamic Prediction Form</h2>
+            </div>
+        </div>
+
+        <div class="bg-surface-container-lowest/50 rounded-xl p-12 border border-dashed border-white/5 flex flex-col items-center justify-center space-y-6">
+            <form id="predictForm" class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl hidden"></form>
+
+            <button id="predictBtn" class="py-4 px-12 rounded-lg bg-gradient-to-r from-secondary to-secondary-dim text-on-secondary font-bold shadow-lg neon-glow-secondary active:scale-95 transition-transform hidden mt-4">
+                Predict Clinical Risk
+            </button>
+
+            <div id="predictionResult" class="hidden rounded-xl p-6 mt-8 w-full max-w-md text-center transition-all">
+                <h3 id="predClass" class="text-xl font-bold font-headline mb-2"></h3>
+                <p id="predProb" class="text-sm opacity-80 font-body"></p>
+            </div>
+        </div>
+    </section>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const DOM = {
+        trainBtn: document.getElementById('trainBtn'),
+        trainStatus: document.getElementById('trainStatus'),
+        classificationMode: document.getElementById('classificationMode'),
+        predictSection: document.getElementById('prediction-section'),
+        predictForm: document.getElementById('predictForm'),
+        predictBtn: document.getElementById('predictBtn'),
+        predictionResult: document.getElementById('predictionResult'),
+        predClass: document.getElementById('predClass'),
+        predProb: document.getElementById('predProb'),
+    };
+
+    const STORAGE_KEY = 'svm_predict_page_state';
+
+    const getStoredState = () => {
+        try {
+            return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
+        } catch {
+            return null;
+        }
+    };
+
+    const saveState = (patch = {}) => {
+        const current = getStoredState() || {};
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...patch }));
+    };
+
+    const renderPredictionForm = (allFeatures, savedValues = {}) => {
+        DOM.predictForm.innerHTML = allFeatures.map(f => `
+            <div class="space-y-1">
+                <label for="inp_${f}" class="text-[10px] uppercase tracking-widest text-[#aaa8c2] font-bold inline-block mb-1">${f}</label>
+                <input type="text" id="inp_${f}" name="${f}" required placeholder="0.0" value="${savedValues[f] || ''}" class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-all text-white">
+            </div>
+        `).join('');
+
+        DOM.predictSection.classList.remove('opacity-50', 'pointer-events-none');
+        DOM.predictForm.classList.remove('hidden');
+        DOM.predictBtn.classList.remove('hidden');
+    };
+
+    const applyPredictionResult = (json) => {
+        DOM.predictionResult.classList.remove('hidden');
+
+        let riskClassStr = "";
+        let riskTextStr = "";
+
+        if (json.mode === "binary") {
+            riskClassStr = json.class === 1 ? "bg-red-500/10 border border-red-500 text-red-500" : "bg-green-500/10 border border-green-500 text-green-500";
+            riskTextStr = json.class === 1 ? "High Risk (Disease Detected)" : "Low Risk (No disease)";
+        } else if (json.class === 2) {
+            riskClassStr = "bg-red-500/10 border border-red-500 text-red-500";
+            riskTextStr = "High Risk (Severe disease)";
+        } else if (json.class === 1) {
+            riskClassStr = "bg-orange-500/10 border border-orange-500 text-orange-400";
+            riskTextStr = "Moderate Risk (Mild disease)";
+        } else {
+            riskClassStr = "bg-green-500/10 border border-green-500 text-green-500";
+            riskTextStr = "Low Risk (No disease)";
+        }
+
+        DOM.predictionResult.className = `p-6 rounded-xl mt-8 w-full max-w-md text-center transition-all ${riskClassStr}`;
+        DOM.predClass.textContent = riskTextStr;
+
+        if (json.mode === "binary") {
+            DOM.predProb.textContent = `Probability: ${(json.probabilities[1] * 100).toFixed(2)}%`;
+        } else {
+            const probStr = json.probabilities.map((p, i) => `C${i}: ${(p * 100).toFixed(1)}%`).join('  |  ');
+            DOM.predProb.textContent = `Distribution: ${probStr}`;
+        }
+    };
+
+    const restoreState = () => {
+        const saved = getStoredState();
+        if (!saved) return;
+
+        if (saved.classificationMode) {
+            DOM.classificationMode.value = saved.classificationMode;
+        }
+
+        if (saved.trainStatusText) {
+            DOM.trainStatus.textContent = saved.trainStatusText;
+            DOM.trainStatus.className = saved.trainStatusClass || "text-green-400 mt-2 text-xs";
+        }
+
+        if (Array.isArray(saved.allFeatures) && saved.allFeatures.length) {
+            renderPredictionForm(saved.allFeatures, saved.formValues || {});
+        }
+
+        if (saved.predictionResult) {
+            applyPredictionResult(saved.predictionResult);
+        }
+    };
+
+    restoreState();
+
+    DOM.trainBtn.addEventListener('click', async () => {
+        DOM.trainStatus.textContent = "Training SVM using Exhaustive GridSearch... This will take a few minutes.";
+        DOM.trainStatus.className = "text-secondary mt-2 text-xs animate-pulse";
+        DOM.trainBtn.disabled = true;
+
+        try {
+            const res = await fetch('/svm/train', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    classification_mode: DOM.classificationMode.value
+                })
+            });
+            const json = await res.json();
+
+            if (!res.ok) {
+                throw new Error(json.error);
+            }
+
+            DOM.trainStatus.textContent = json.message;
+            DOM.trainStatus.className = "text-green-400 mt-2 text-xs";
+            renderPredictionForm(json.all_features);
+            DOM.predictionResult.classList.add('hidden');
+
+            saveState({
+                classificationMode: DOM.classificationMode.value,
+                trainStatusText: json.message,
+                trainStatusClass: "text-green-400 mt-2 text-xs",
+                allFeatures: json.all_features,
+                formValues: {},
+                predictionResult: null
+            });
+        } catch (err) {
+            DOM.trainStatus.textContent = `Error: ${err.message}`;
+            DOM.trainStatus.className = "text-red-400 mt-2 text-xs";
+        } finally {
+            DOM.trainBtn.disabled = false;
+        }
+    });
+
+    DOM.predictBtn.addEventListener('click', async () => {
+        const formData = new FormData(DOM.predictForm);
+        const data = Object.fromEntries(formData.entries());
+
+        if (Object.values(data).some(v => v === "")) {
+            return alert("Please fill all fields.");
+        }
+
+        DOM.predictBtn.disabled = true;
+
+        try {
+            const res = await fetch('/svm/predict', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const json = await res.json();
+
+            if (!res.ok) {
+                throw new Error(json.error);
+            }
+
+            applyPredictionResult(json);
+            saveState({
+                classificationMode: DOM.classificationMode.value,
+                formValues: data,
+                predictionResult: json
+            });
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        } finally {
+            DOM.predictBtn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}
