@@ -10,6 +10,28 @@ svm_bp = Blueprint('svm', __name__, url_prefix='/svm')
 
 RANDOM_STATE = 42
 
+def build_input_schema():
+    preprocessor = app_state.preprocessor or {}
+    numeric_cols = preprocessor.get("numeric_cols", [])
+    categorical_cols = preprocessor.get("categorical_cols", [])
+    schema = []
+
+    for col in app_state.feature_columns:
+        if col in numeric_cols:
+            schema.append({
+                "name": col,
+                "kind": "numeric"
+            })
+        elif col in categorical_cols:
+            options = sorted(app_state.df[col].dropna().astype(str).unique().tolist())
+            schema.append({
+                "name": col,
+                "kind": "categorical",
+                "options": options
+            })
+
+    return schema
+
 @svm_bp.route("/predict_page", methods=["GET"])
 def predict_page():
     return render_template("svm_predict.html")
@@ -76,7 +98,7 @@ def train():
 
         return jsonify({
             "message": f"{classification_mode.capitalize()} SVM Model trained successfully using full GridSearchCV.",
-            "all_features": app_state.feature_names
+            "input_schema": build_input_schema()
         })
 
     except Exception as e:

@@ -12,7 +12,8 @@ def index():
 @main_bp.route("/dataset_info", methods=["GET"])
 def dataset_info():
     return jsonify({
-        "total_features": len(app_state.feature_columns)
+        "raw_feature_count": len(app_state.feature_columns),
+        "processed_feature_count": len(app_state.feature_names)
     })
 
 @main_bp.route("/upload", methods=["POST"])
@@ -47,6 +48,10 @@ def upload():
         app_state.lr_model = None
         app_state.svm_model = None
         
-        return jsonify({"message": "Dataset uploaded successfully.", "total_features": len(feature_columns)})
+        return jsonify({
+            "message": "Dataset uploaded successfully.",
+            "raw_feature_count": len(feature_columns),
+            "processed_feature_count": len(feature_names)
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500

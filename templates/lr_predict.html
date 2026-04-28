@@ -116,8 +116,8 @@
     const showFeatureLimitMessage = (maxAllowed, requestedValue = null) => {
         const overLimit = requestedValue !== null && requestedValue > maxAllowed;
         DOM.nFeaturesHelp.textContent = overLimit
-            ? `Maximum allowed is ${maxAllowed} features for this dataset.`
-            : `Maximum allowed for this dataset: ${maxAllowed} features.`;
+            ? `Maximum allowed is ${maxAllowed} processed features for this dataset.`
+            : `Maximum allowed for this dataset: ${maxAllowed} processed features.`;
         DOM.nFeaturesHelp.className = overLimit ? "text-xs text-orange-400" : "text-xs text-on-surface-variant";
     };
 
@@ -134,7 +134,7 @@
         DOM.nFeatures.value = String(Math.min(currentValue, maxAllowed));
         showFeatureLimitMessage(maxAllowed);
         saveState({ datasetFeatureCount: maxAllowed, nFeatures: DOM.nFeatures.value });
-        sessionStorage.setItem('dataset_feature_count', String(maxAllowed));
+        sessionStorage.setItem('dataset_processed_feature_count', String(maxAllowed));
     };
 
     const enforceFeatureThresholdLimit = () => {
@@ -158,7 +158,7 @@
 
     const loadFeatureThresholdLimit = async () => {
         const saved = getStoredState();
-        const sessionFeatureCount = Number(sessionStorage.getItem('dataset_feature_count'));
+        const sessionFeatureCount = Number(sessionStorage.getItem('dataset_processed_feature_count'));
 
         if (saved?.datasetFeatureCount) {
             setFeatureThresholdLimit(Number(saved.datasetFeatureCount));
@@ -172,20 +172,38 @@
             const res = await fetch('/dataset_info');
             const json = await res.json();
             if (res.ok) {
-                setFeatureThresholdLimit(Number(json.total_features));
+                setFeatureThresholdLimit(Number(json.processed_feature_count));
             }
         } catch (err) {
             // Keep the current UI limit if dataset info is unavailable.
         }
     };
 
-    const renderPredictionForm = (selectedFeatures, savedValues = {}) => {
-        DOM.predictForm.innerHTML = selectedFeatures.map(f => `
-            <div class="space-y-1">
-                <label for="inp_${f}" class="text-[10px] uppercase tracking-widest text-[#aaa8c2] font-bold inline-block mb-1">${f}</label>
-                <input type="text" id="inp_${f}" name="${f}" required placeholder="0.0" value="${savedValues[f] || ''}" class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all text-white">
-            </div>
-        `).join('');
+    const renderPredictionForm = (inputSchema, savedValues = {}) => {
+        DOM.predictForm.innerHTML = inputSchema.map(field => {
+            if (field.kind === 'categorical') {
+                const options = (field.options || []).map(option => `
+                    <option value="${option}" ${savedValues[field.name] === option ? 'selected' : ''}>${option}</option>
+                `).join('');
+
+                return `
+                    <div class="space-y-1">
+                        <label for="inp_${field.name}" class="text-[10px] uppercase tracking-widest text-[#aaa8c2] font-bold inline-block mb-1">${field.name}</label>
+                        <select id="inp_${field.name}" name="${field.name}" required class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all text-white">
+                            <option value="">Select ${field.name}</option>
+                            ${options}
+                        </select>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="space-y-1">
+                    <label for="inp_${field.name}" class="text-[10px] uppercase tracking-widest text-[#aaa8c2] font-bold inline-block mb-1">${field.name}</label>
+                    <input type="number" step="any" id="inp_${field.name}" name="${field.name}" required placeholder="0.0" value="${savedValues[field.name] || ''}" class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-primary transition-all text-white">
+                </div>
+            `;
+        }).join('');
 
         DOM.predictSection.classList.remove('opacity-50', 'pointer-events-none');
         DOM.predictForm.classList.remove('hidden');
@@ -244,7 +262,10 @@
             DOM.selectedFeaturesList.innerHTML = saved.selectedFeatures.map(f => `
                 <span class="bg-surface-container-lowest border border-white/10 px-3 py-1 rounded text-xs text-on-surface-variant">${f}</span>
             `).join('');
-            renderPredictionForm(saved.selectedFeatures, saved.formValues || {});
+        }
+
+        if (Array.isArray(saved.inputSchema) && saved.inputSchema.length) {
+            renderPredictionForm(saved.inputSchema, saved.formValues || {});
         }
 
         if (saved.predictionResult) {
@@ -284,7 +305,7 @@
                 <span class="bg-surface-container-lowest border border-white/10 px-3 py-1 rounded text-xs text-on-surface-variant">${f}</span>
             `).join('');
 
-            renderPredictionForm(json.selected_features);
+            renderPredictionForm(json.input_schema || []);
             DOM.predictionResult.classList.add('hidden');
 
             saveState({
@@ -293,6 +314,7 @@
                 trainStatusText: json.message,
                 trainStatusClass: "text-green-400 mt-2 text-xs",
                 selectedFeatures: json.selected_features,
+                inputSchema: json.input_schema || [],
                 formValues: {},
                 predictionResult: null
             });

@@ -13,6 +13,41 @@ lr_bp = Blueprint('lr', __name__, url_prefix='/lr')
 
 RANDOM_STATE = 42
 
+def build_input_schema(selected_feature_names):
+    preprocessor = app_state.preprocessor or {}
+    numeric_cols = preprocessor.get("numeric_cols", [])
+    categorical_cols = preprocessor.get("categorical_cols", [])
+    raw_columns = []
+
+    for feature_name in selected_feature_names:
+        if feature_name in numeric_cols:
+            if feature_name not in raw_columns:
+                raw_columns.append(feature_name)
+            continue
+
+        for col in categorical_cols:
+            if feature_name.startswith(f"{col}_"):
+                if col not in raw_columns:
+                    raw_columns.append(col)
+                break
+
+    schema = []
+    for col in raw_columns:
+        if col in numeric_cols:
+            schema.append({
+                "name": col,
+                "kind": "numeric"
+            })
+        else:
+            options = sorted(app_state.df[col].dropna().astype(str).unique().tolist())
+            schema.append({
+                "name": col,
+                "kind": "categorical",
+                "options": options
+            })
+
+    return schema
+
 @lr_bp.route("/predict_page", methods=["GET"])
 def predict_page():
     return render_template("lr_predict.html")
@@ -29,7 +64,7 @@ def train():
     data = request.json
     n_features = int(data.get("n_features", 7))
     classification_mode = data.get("classification_mode", "binary")
-    n_iters = 5  # Quick for demo, could be configurable
+    n_iters = 20  
     
     app_state.lr_mode = classification_mode
     
@@ -99,7 +134,8 @@ def train():
 
         return jsonify({
             "message": message,
-            "selected_features": selected_names
+            "selected_features": selected_names,
+            "input_schema": build_input_schema(selected_names)
         })
 
     except Exception as e:

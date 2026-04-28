@@ -101,13 +101,31 @@
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...patch }));
     };
 
-    const renderPredictionForm = (allFeatures, savedValues = {}) => {
-        DOM.predictForm.innerHTML = allFeatures.map(f => `
-            <div class="space-y-1">
-                <label for="inp_${f}" class="text-[10px] uppercase tracking-widest text-[#aaa8c2] font-bold inline-block mb-1">${f}</label>
-                <input type="text" id="inp_${f}" name="${f}" required placeholder="0.0" value="${savedValues[f] || ''}" class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-all text-white">
-            </div>
-        `).join('');
+    const renderPredictionForm = (inputSchema, savedValues = {}) => {
+        DOM.predictForm.innerHTML = inputSchema.map(field => {
+            if (field.kind === 'categorical') {
+                const options = (field.options || []).map(option => `
+                    <option value="${option}" ${savedValues[field.name] === option ? 'selected' : ''}>${option}</option>
+                `).join('');
+
+                return `
+                    <div class="space-y-1">
+                        <label for="inp_${field.name}" class="text-[10px] uppercase tracking-widest text-[#aaa8c2] font-bold inline-block mb-1">${field.name}</label>
+                        <select id="inp_${field.name}" name="${field.name}" required class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-all text-white">
+                            <option value="">Select ${field.name}</option>
+                            ${options}
+                        </select>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="space-y-1">
+                    <label for="inp_${field.name}" class="text-[10px] uppercase tracking-widest text-[#aaa8c2] font-bold inline-block mb-1">${field.name}</label>
+                    <input type="number" step="any" id="inp_${field.name}" name="${field.name}" required placeholder="0.0" value="${savedValues[field.name] || ''}" class="w-full bg-surface-container-high border border-outline-variant/30 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-all text-white">
+                </div>
+            `;
+        }).join('');
 
         DOM.predictSection.classList.remove('opacity-50', 'pointer-events-none');
         DOM.predictForm.classList.remove('hidden');
@@ -158,8 +176,8 @@
             DOM.trainStatus.className = saved.trainStatusClass || "text-green-400 mt-2 text-xs";
         }
 
-        if (Array.isArray(saved.allFeatures) && saved.allFeatures.length) {
-            renderPredictionForm(saved.allFeatures, saved.formValues || {});
+        if (Array.isArray(saved.inputSchema) && saved.inputSchema.length) {
+            renderPredictionForm(saved.inputSchema, saved.formValues || {});
         }
 
         if (saved.predictionResult) {
@@ -190,14 +208,14 @@
 
             DOM.trainStatus.textContent = json.message;
             DOM.trainStatus.className = "text-green-400 mt-2 text-xs";
-            renderPredictionForm(json.all_features);
+            renderPredictionForm(json.input_schema || []);
             DOM.predictionResult.classList.add('hidden');
 
             saveState({
                 classificationMode: DOM.classificationMode.value,
                 trainStatusText: json.message,
                 trainStatusClass: "text-green-400 mt-2 text-xs",
-                allFeatures: json.all_features,
+                inputSchema: json.input_schema || [],
                 formValues: {},
                 predictionResult: null
             });

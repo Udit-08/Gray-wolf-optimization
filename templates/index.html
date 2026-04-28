@@ -62,8 +62,9 @@
                 throw new Error(json.error);
             }
 
-            sessionStorage.setItem('dataset_feature_count', String(json.total_features));
-            uploadStatus.innerHTML = `Success. Pipeline initialized with ${json.total_features} features.<br><span class="text-white">Proceed to the LR or SVM sections.</span>`;
+            sessionStorage.setItem('dataset_raw_feature_count', String(json.raw_feature_count));
+            sessionStorage.setItem('dataset_processed_feature_count', String(json.processed_feature_count));
+            uploadStatus.innerHTML = `Success. Dataset columns: ${json.raw_feature_count}. Processed model features: ${json.processed_feature_count}.<br><span class="text-white">Proceed to the LR or SVM sections.</span>`;
             uploadStatus.className = "text-green-400 mt-2 text-xs";
             uploadBtn.classList.replace('bg-surface-container-high', 'bg-green-500/10');
             uploadBtn.classList.replace('border-primary/40', 'border-green-500/40');
